@@ -7,6 +7,11 @@ project(SoundApp)
 find_package(OpenGL REQUIRED)
 
 CPMAddPackage(
+    NAME spdlog
+    GITHUB_REPOSITORY gabime/spdlog
+    VERSION 1.7.0)
+
+CPMAddPackage(
     NAME imgui
     GIT_TAG v1.79
     GITHUB_REPOSITORY ocornut/imgui
@@ -50,6 +55,7 @@ add_executable(SoundApp
     "src/application.cpp"
     "src/program.cpp"
     "src/glad.c"
+    "src/wasapi.cpp"
 )
 
 target_include_directories(
@@ -62,7 +68,9 @@ target_link_libraries(
     SoundApp
     PUBLIC
         ${OPENGL_LIBRARIES}
+        spdlog
         imgui
+        winmm
 )
 
 target_compile_options(

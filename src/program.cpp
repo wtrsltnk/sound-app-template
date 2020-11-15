@@ -10,7 +10,11 @@
 #include <examples/imgui_impl_opengl3.h>
 #include <imgui_internal.h>
 #include "application.h"
+#include "wasapi.h"
 #include <wchar.h>
+#include <chrono>
+#include <spdlog/spdlog.h>
+#include <iostream>
 
 IApplication::~IApplication() = default;
 
@@ -41,6 +45,31 @@ extern IApplication *CreateApplication();
 
 static IApplication *app = nullptr;
 static bool glReady = false;
+static std::chrono::milliseconds::rep cursor = 0;
+
+// This function is called from Wasapi::threadFunc() which is running in audio thread.
+bool refillCallback(
+    float *const data,
+    uint32_t sampleCount,
+    const WAVEFORMATEX *const mixFormat)
+{
+    auto diff = sampleCount * (1000.0 / mixFormat->nSamplesPerSec);
+    // state.UpdateByDiff(diff);
+
+    const auto nDstChannels = mixFormat->nChannels;
+
+    // zero out the data
+    for (size_t iFrame = 0; iFrame < sampleCount; ++iFrame)
+    {
+        for (size_t iChannel = 0; iChannel < nDstChannels; ++iChannel)
+        {
+            const size_t wasapiWriteIndex = iFrame * nDstChannels + iChannel;
+            *(data + wasapiWriteIndex) = 0;
+        }
+    }
+
+    return true;
+}
 
 int wmain(
     int argc,
@@ -68,6 +97,12 @@ int wmain(
     ZeroMemory(
         &msg,
         sizeof(msg));
+
+    Wasapi wasapi([&](float *const data, uint32_t availableFrameCount, const WAVEFORMATEX *const mixFormat) {
+        return refillCallback(data, availableFrameCount, mixFormat);
+    });
+    
+    std::wcout << wasapi.CurrentDevice() << std::endl;
 
     while (GetMessage(&msg, NULL, 0, 0) > 0)
     {
